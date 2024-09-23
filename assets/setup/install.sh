@@ -4,15 +4,9 @@ set -e
 
 QMAIL_HOME="/var/qmail"
 QMAIL_LOG_DIR="/var/log/qmail"
-VPOPMAIL_HOME="/home/vpopmail"
 
 #QMAIL_DOWNLOAD="http://www.qmail.org/netqmail-1.06.tar.gz"
-#VPOPMAIL_DOWNLOAD="http://downloads.sourceforge.net/project/vpopmail/vpopmail-stable/5.4.33/vpopmail-5.4.33.tar.gz"
 #EZMLM_DOWNLOAD="https://github.com/bruceg/ezmlm-idx/archive/7.2.2.tar.gz"
-#AUTORESPOND_DOWNLOAD="http://qmail.ixip.net/download/autorespond-2.0.5.tar.gz"
-#AUTORESPOND_DOWNLOAD="https://github.com/roffe/autorespond-2.0.6/archive/master.zip"
-#QMAILADMIN_DOWNLOAD="http://downloads.sourceforge.net/project/qmailadmin/qmailadmin-devel/qmailadmin-1.2.16.tar.gz"
-#MAILDROP_DOWNLOAD="http://downloads.sourceforge.net/project/courier/maildrop/2.8.1/maildrop-2.8.1.tar.bz2"
 
 ## QMAIL INSTALL BASED ON LWQ ##
 cd /usr/src
@@ -113,24 +107,6 @@ chmod 644 /etc/tcp.smtp.cdb
 
 mkdir ${QMAIL_LOG_DIR}
 
-## VPOPMAIL INSTALL ##
-cd /usr/src
-
-#wget $VPOPMAIL_DOWNLOAD -O vpopmail-5.4.33.tar.gz
-#tar -zxf vpopmail-5.4.33.tar.gz
-tar -zxf /app/setup/vpopmail-5.4.33.tar.gz
-cd vpopmail-5.4.33
-
-groupadd -g 89 vchkpw
-useradd -u 89 -g vchkpw vpopmail
-
-./configure
-make install-strip
-
-#Legacy support:
-ln -s /home/vpopmail /var/lib/vpopmail
-
-
 ## EZMLM
 cd /usr/src
 echo "installing ezmlm"
@@ -146,95 +122,3 @@ make
 #make man
 #make mysql
 make install
-
-## Autoresponder ##
-cd /usr/src
-echo "installing Autoresponder"
-#wget ${AUTORESPOND_DOWNLOAD} -O autorespond-2.0.6.tar.gz
-#tar -zxf autorespond-2.0.6.tar.gz
-tar -zvxf /app/setup/autorespond-2.0.6.tar.gz
-cd autorespond-2.0.6-master
-make && make install
-
-## Qmailadmin ##
-cd /usr/src
-echo "installing QmailAdmin"
-#wget ${QMAILADMIN_DOWNLOAD} -O qmailadmin-1.2.16.tar.gz
-#tar -zxf qmailadmin-1.2.16.tar.gz
-tar -zxf /app/setup/qmailadmin-1.2.16.tar.gz
-cd qmailadmin-1.2.16
-
-./configure --enable-htmldir=/usr/share/qmailadmin/html --enable-imagedir=/usr/share/qmailadmin/images --enable-cgibindir=/usr/lib/cgi-bin --enable-htmllibdir=/usr/share/qmailadmin --enable-imageurl=/images --enable-cgipath=/qmailadmin
-make
-make install-strip
-echo "Done installing QmailAdmin"
-
-echo "Setting supervisor configs"
-# make sure fcgi runs
-cat > /etc/supervisor/conf.d/fgci.conf <<EOF
-[program:fcgi]
-priority=10
-directory=/tmp
-command=/usr/bin/spawn-fcgi -n -P /var/run/fcgiwrap.pid -F 1 -s /var/run/fcgiwrap.socket -U www-data -G www-data /usr/sbin/fcgiwrap
-user=root
-autostart=true
-autorestart=true
-stdout_logfile=/var/log/supervisor/%(program_name)s.log
-stderr_logfile=/var/log/supervisor/%(program_name)s.log
-EOF
-
-# configure supervisord to start nginx
-cat > /etc/supervisor/conf.d/nginx.conf <<EOF
-[program:nginx]
-priority=20
-directory=/tmp
-command=/usr/sbin/nginx -g "daemon off;"
-user=root
-autostart=true
-autorestart=true
-stdout_logfile=/var/log/supervisor/%(program_name)s.log
-stderr_logfile=/var/log/supervisor/%(program_name)s.log
-EOF
-echo "Setting nginx config"
-rm -f /etc/nginx/sites-enabled/default
-cp /app/setup/config/nginx-qmailadmin.conf /etc/nginx/sites-enabled/qmailadmin.conf
-
-
-## Dovecot
-cd /usr/src
-echo "Installing Dovecot"
-apt-get source dovecot
-apt-get -y build-dep dovecot
-cd dovecot-*
-
-# Add vpopmail support
-sed -i '/--with-sqlite/ s/\\$/ --with-vpopmail \\/' debian/rules
-# build dovecot
-dpkg-buildpackage -rfakeroot -uc -b
-
-cd ..
-# Install dovecot and make sure it doesn't get overwritten
-dpkg -i dovecot-core_* dovecot-imapd_* dovecot-lmtpd_* dovecot-managesieved_* dovecot-pop3d_* dovecot-sieve_*
-apt-mark hold dovecot-core dovecot-imapd dovecot-lmtpd dovecot-managesieved dovecot-pop3d dovecot-sieve
-
-# Configure supervisord to start dovecot
-cat > /etc/supervisor/conf.d/dovecot.conf <<EOF
-[program:dovecot]
-directory=/tmp
-command=/usr/sbin/dovecot -F
-user=root
-autostart=true
-autorestart=true
-stdout_logfile=/var/log/supervisor/%(program_name)s.log
-stderr_logfile=/var/log/supervisor/%(program_name)s.log
-EOF
-
-cd /etc/dovecot/conf.d/
-sed -i 's/!include auth-system.conf.ext/\#!include auth-system.conf.ext/' 10-auth.conf
-sed -i 's/\#!include auth-vpopmail.conf.ext/!include auth-vpopmail.conf.ext/' 10-auth.conf
-sed -i 's/\#first_valid_uid = .*$/first_valid_uid = 89/' 10-mail.conf
-sed -i 's/\#first_valid_gid = .*$/first_valid_gid = 89/' 10-mail.conf
-sed -i 's/^mail_location = .*$/mail_location = maildir:~\/Maildir/' 10-mail.conf
-
-cd /etc/dovecot/
-sed -i 's/\#login_trusted_networks =/login_trusted_networks = 172.17.0.0/16' dovecot.conf

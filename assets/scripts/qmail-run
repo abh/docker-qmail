@@ -2,6 +2,5 @@
 
 docker run -it --rm -v /var/qmail/control:/var/qmail/control \
 	-v /var/qmail/users:/var/qmail/users \
-	-v /home/vpopmail/domains:/home/vpopmail/domains \
-	-e PATH="$PATH:/home/vpopmail/bin" \
+	-e PATH="$PATH" \
 	qmail $@
