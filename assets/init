@@ -5,12 +5,8 @@ set -e
 SETUP_DIR="/app/setup"
 
 QMAIL_HOME="/var/qmail"
-VPOPMAIL_HOME="/home/vpopmail"
 
 appStart () {
-	#make sure perms are ok
-	chown -R vpopmail:vchkpw ${VPOPMAIL_HOME}/domains/
-
 	# start supervisord
   	echo "Starting supervisord..."
   	exec /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
