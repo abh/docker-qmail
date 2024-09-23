@@ -19,6 +19,10 @@ appHelp () {
   echo " [command]          - Execute the specified linux command eg. bash."
 }
 
+if [ -x /home/setup-users ]; then
+  /home/setup-users
+fi
+
 case "$1" in
   app:start)
     appStart
