@@ -3,7 +3,13 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 #Make sure ubuntu is up-to-date and install necessary packages
-RUN sed -i "s/\# deb-src/deb-src/g" /etc/apt/sources.list && apt-get update && apt-get -y upgrade && apt-get -y install build-essential supervisor logrotate locales ucspi-tcp groff-base curl wget daemontools git-core libmysqlclient-dev ssl-cert automake rsync vim
+RUN sed -i "s/\# deb-src/deb-src/g" /etc/apt/sources.list && \
+  apt-get update && \
+  apt-get -y upgrade && \
+  apt-get -y install build-essential supervisor logrotate \
+  locales ucspi-tcp groff-base curl wget daemontools git-core \
+  libmysqlclient-dev ssl-cert automake rsync vim \
+  swaks netcat-openbsd
 
 COPY assets/setup/ /app/setup/
 RUN chmod 755 /app/setup/install.sh
