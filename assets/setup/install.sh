@@ -116,6 +116,7 @@ echo "installing ezmlm"
 tar -zxvf /app/setup/ezmlm-idx-7.2.2.tar.gz
 #cd ezmlm-idx
 cd ezmlm-idx-7.2.2
+echo /usr/bin > conf-bin
 bash ./tools/makemake
 make clean
 make
